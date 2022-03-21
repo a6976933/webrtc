@@ -275,3 +275,45 @@ func (s *TrackLocalStaticSample) WriteSample(sample media.Sample) error {
 
 	return util.FlattenErrs(writeErrs)
 }
+
+// WriteSampleV2 writes a Sample to the TrackLocalStaticSample
+// If one PeerConnection fails the packets will still be sent to
+// all PeerConnections. The error message will contain the ID of the failed
+// PeerConnections so you can remove them
+func (s *TrackLocalStaticSample) WriteSampleV2(sample media.Sample, framenumber uint32) error {
+	s.rtpTrack.mu.RLock()
+	p := s.packetizer
+	clockRate := s.clockRate
+	s.rtpTrack.mu.RUnlock()
+
+	if p == nil {
+		return nil
+	}
+
+	// skip packets by the number of previously dropped packets
+	for i := uint16(0); i < sample.PrevDroppedPackets; i++ {
+		s.sequencer.NextSequenceNumber()
+	}
+
+	samples := uint32(sample.Duration.Seconds() * clockRate)
+	if sample.PrevDroppedPackets > 0 {
+		p.(rtp.Packetizer).SkipSamples(samples * uint32(sample.PrevDroppedPackets))
+	}
+	packets := p.(rtp.Packetizer).Packetize(sample.Data, samples)
+	for k, _ := range packets {
+		//log.Println(packets[k].Payload[0] & 0x1f)
+		fb := (framenumber & 0x00ff0000 >> 16)
+		sb := (framenumber & 0x0000ff00 >> 8)
+		tb := (framenumber & 0x000000ff)
+		packets[k].Payload = append(packets[k].Payload, []byte{byte(fb), byte(sb), byte(tb)}...)
+	}
+
+	writeErrs := []error{}
+	for _, p := range packets {
+		if err := s.rtpTrack.WriteRTP(p); err != nil {
+			writeErrs = append(writeErrs, err)
+		}
+	}
+
+	return util.FlattenErrs(writeErrs)
+}

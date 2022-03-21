@@ -132,12 +132,13 @@ func (reader *H264Reader) NextNAL() (*NAL, error) {
 		if nalFound {
 			nal := newNal(reader.nalBuffer)
 			nal.parseHeader()
-			if nal.UnitType == NalUnitTypeSEI {
+			break
+			/*if nal.UnitType == NalUnitTypeSEI {
 				reader.nalBuffer = nil
 				continue
 			} else {
 				break
-			}
+			}*/
 		}
 
 		reader.nalBuffer = append(reader.nalBuffer, readByte)
