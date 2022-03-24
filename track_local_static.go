@@ -302,10 +302,9 @@ func (s *TrackLocalStaticSample) WriteSampleV2(sample media.Sample, framenumber 
 	packets := p.(rtp.Packetizer).Packetize(sample.Data, samples)
 	for k, _ := range packets {
 		//log.Println(packets[k].Payload[0] & 0x1f)
-		fb := (framenumber & 0x00ff0000 >> 16)
-		sb := (framenumber & 0x0000ff00 >> 8)
-		tb := (framenumber & 0x000000ff)
-		packets[k].Payload = append(packets[k].Payload, []byte{byte(fb), byte(sb), byte(tb)}...)
+		fb := (framenumber & 0x0000ff00 >> 8)
+		sb := (framenumber & 0x000000ff)
+		packets[k].Payload = append(packets[k].Payload, []byte{byte(fb), byte(sb)}...)
 	}
 
 	writeErrs := []error{}
