@@ -4,6 +4,7 @@ package webrtc
 
 import (
 	"io"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -120,7 +121,10 @@ func (s *srtpWriterFuture) WriteRTP(header *rtp.Header, payload []byte) (int, er
 		return 0, err
 	}
 
-	return s.WriteRTP(header, payload)
+	log.Println("Write srtp before", time.Now().Format("2006-01-02 15:04:05.000000"))
+	n, err := s.WriteRTP(header, payload)
+	log.Println("Write srtp after", time.Now().Format("2006-01-02 15:04:05.000000"))
+	return n, err
 }
 
 func (s *srtpWriterFuture) Write(b []byte) (int, error) {
