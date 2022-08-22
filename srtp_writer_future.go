@@ -114,17 +114,18 @@ func (s *srtpWriterFuture) SetReadDeadline(t time.Time) error {
 
 func (s *srtpWriterFuture) WriteRTP(header *rtp.Header, payload []byte) (int, error) {
 	if value := s.rtpWriteStream.Load(); value != nil {
-		return value.(*srtp.WriteStreamSRTP).WriteRTP(header, payload)
+		log.Println("Write srtp before", time.Now().Format("2006-01-02 15:04:05.000000"))
+		n, err := value.(*srtp.WriteStreamSRTP).WriteRTP(header, payload)
+		log.Println("Write srtp after", time.Now().Format("2006-01-02 15:04:05.000000"))
+		return n, err
 	}
 
 	if err := s.init(true); err != nil || s.rtpWriteStream.Load() == nil {
 		return 0, err
 	}
 
-	log.Println("Write srtp before", time.Now().Format("2006-01-02 15:04:05.000000"))
-	n, err := s.WriteRTP(header, payload)
-	log.Println("Write srtp after", time.Now().Format("2006-01-02 15:04:05.000000"))
-	return n, err
+	return s.WriteRTP(header, payload)
+
 }
 
 func (s *srtpWriterFuture) Write(b []byte) (int, error) {
