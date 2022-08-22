@@ -3,7 +3,9 @@
 package webrtc
 
 import (
+	"log"
 	"sync/atomic"
+	"time"
 
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/nack"
@@ -115,7 +117,7 @@ func (i *interceptorToTrackLocalWriter) WriteRTP(header *rtp.Header, payload []b
 	if writer, ok := i.interceptor.Load().(interceptor.RTPWriter); ok && writer != nil {
 		return writer.Write(header, payload, interceptor.Attributes{})
 	}
-
+	log.Println("Finish Writing", time.Now().Format("2006-01-02 15:04:05.000000"))
 	return 0, nil
 }
 
