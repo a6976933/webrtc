@@ -39,6 +39,7 @@ func (e *Endpoint) Read(p []byte) (int, error) {
 
 // Write writes len(p) bytes to the underlying conn
 func (e *Endpoint) Write(p []byte) (int, error) {
+	//ts := time.Now()
 	n, err := e.mux.nextConn.Write(p)
 	if errors.Is(err, ice.ErrNoCandidatePairs) {
 		return 0, nil

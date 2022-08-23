@@ -124,7 +124,6 @@ func (s *srtpWriterFuture) WriteRTP(header *rtp.Header, payload []byte) (int, er
 	}
 
 	return s.WriteRTP(header, payload)
-
 }
 
 func (s *srtpWriterFuture) Write(b []byte) (int, error) {
