@@ -51,7 +51,7 @@ type NAL struct {
 
 func (reader *H264Reader) read(numToRead int) (data []byte) {
 	for len(reader.readBuffer) < numToRead {
-		buf := make([]byte, 4096)
+		buf := make([]byte, 65536)
 		n, err := reader.stream.Read(buf)
 		if n == 0 || err != nil {
 			break
