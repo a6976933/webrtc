@@ -14,6 +14,7 @@ type H264Reader struct {
 	countOfConsecutiveZeroBytes int
 	nalPrefixParsed             bool
 	readBuffer                  []byte
+	tmpReadBuf                  []byte
 }
 
 var (
@@ -32,6 +33,7 @@ func NewReader(in io.Reader) (*H264Reader, error) {
 		nalBuffer:       make([]byte, 0),
 		nalPrefixParsed: false,
 		readBuffer:      make([]byte, 0),
+		tmpReadBuf:      make([]byte, 65536),
 	}
 
 	return reader, nil
@@ -51,13 +53,12 @@ type NAL struct {
 
 func (reader *H264Reader) read(numToRead int) (data []byte) {
 	for len(reader.readBuffer) < numToRead {
-		buf := make([]byte, 65536)
-		n, err := reader.stream.Read(buf)
+		n, err := reader.stream.Read(reader.tmpReadBuf)
 		if n == 0 || err != nil {
 			break
 		}
-		buf = buf[0:n]
-		reader.readBuffer = append(reader.readBuffer, buf...)
+		//buf = reader.tmpReadBuf[0:n]
+		reader.readBuffer = append(reader.readBuffer, reader.tmpReadBuf[:n]...)
 	}
 	var numShouldRead int
 	if numToRead <= len(reader.readBuffer) {
@@ -67,6 +68,29 @@ func (reader *H264Reader) read(numToRead int) (data []byte) {
 	}
 	data = reader.readBuffer[0:numShouldRead]
 	reader.readBuffer = reader.readBuffer[numShouldRead:]
+	return data
+}
+
+func (reader *H264Reader) read1Nal() (data []byte) {
+	nalPrefix4Bytes := []byte{0, 0, 0, 1}
+	idx := 0
+	for {
+		if idx+4 > len(reader.readBuffer) {
+			n, err := reader.stream.Read(reader.tmpReadBuf)
+			if n == 0 || err != nil {
+				break
+			}
+			reader.readBuffer = append(reader.readBuffer, reader.tmpReadBuf[:n]...)
+		}
+		findnal := bytes.Equal(nalPrefix4Bytes, reader.readBuffer[idx:idx+4])
+		if findnal {
+			break
+		} else {
+			idx += 4
+		}
+	}
+	data = reader.readBuffer[0:idx]
+	reader.readBuffer = reader.readBuffer[idx+4:]
 	return data
 }
 
@@ -120,6 +144,8 @@ func (reader *H264Reader) NextNAL() (*NAL, error) {
 		reader.nalPrefixParsed = true
 	}
 
+	//reader.nalBuffer = make([]byte, 0, 8192)
+	// What the fuck
 	for {
 		buffer := reader.read(1)
 		n := len(buffer)
@@ -133,16 +159,14 @@ func (reader *H264Reader) NextNAL() (*NAL, error) {
 			nal := newNal(reader.nalBuffer)
 			nal.parseHeader()
 			break
-			/*if nal.UnitType == NalUnitTypeSEI {
-				reader.nalBuffer = nil
-				continue
-			} else {
-				break
-			}*/
 		}
 
 		reader.nalBuffer = append(reader.nalBuffer, readByte)
 	}
+	/*data := reader.read1Nal()
+	reader.nalBuffer = make([]byte, len(data))
+	copy(reader.nalBuffer, data)
+	data = nil*/
 
 	if len(reader.nalBuffer) == 0 {
 		return nil, io.EOF
