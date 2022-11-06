@@ -1,3 +1,4 @@
+//go:build !js
 // +build !js
 
 package webrtc
@@ -305,6 +306,49 @@ func (s *TrackLocalStaticSample) WriteSampleV2(sample media.Sample, framenumber 
 		fb := (framenumber & 0x0000ff00 >> 8)
 		sb := (framenumber & 0x000000ff)
 		packets[k].Payload = append(packets[k].Payload, []byte{byte(fb), byte(sb)}...)
+	}
+
+	writeErrs := []error{}
+	for _, p := range packets {
+		if err := s.rtpTrack.WriteRTP(p); err != nil {
+			writeErrs = append(writeErrs, err)
+		}
+	}
+
+	return util.FlattenErrs(writeErrs)
+}
+
+// WriteSampleV3 writes a Sample to the TrackLocalStaticSample
+// If one PeerConnection fails the packets will still be sent to
+// all PeerConnections. The error message will contain the ID of the failed
+// PeerConnections so you can remove them
+// append control bit and framenumber
+func (s *TrackLocalStaticSample) WriteSampleV3(sample media.Sample, naluID uint8, framenumber uint32) error {
+	s.rtpTrack.mu.RLock()
+	p := s.packetizer
+	clockRate := s.clockRate
+	s.rtpTrack.mu.RUnlock()
+
+	if p == nil {
+		return nil
+	}
+
+	// skip packets by the number of previously dropped packets
+	for i := uint16(0); i < sample.PrevDroppedPackets; i++ {
+		s.sequencer.NextSequenceNumber()
+	}
+
+	samples := uint32(sample.Duration.Seconds() * clockRate)
+	if sample.PrevDroppedPackets > 0 {
+		p.(rtp.Packetizer).SkipSamples(samples * uint32(sample.PrevDroppedPackets))
+	}
+	packets := p.(rtp.Packetizer).Packetize(sample.Data, samples)
+	for k, _ := range packets {
+		//log.Println(packets[k].Payload[0] & 0x1f)
+		ctlbyte := byte((naluID << 7) & 0x80)
+		fb := (framenumber & 0x0000ff00 >> 8)
+		sb := (framenumber & 0x000000ff)
+		packets[k].Payload = append(packets[k].Payload, []byte{byte(ctlbyte), byte(fb), byte(sb)}...)
 	}
 
 	writeErrs := []error{}
