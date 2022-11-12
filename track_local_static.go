@@ -345,7 +345,7 @@ func (s *TrackLocalStaticSample) WriteSampleV3(sample media.Sample, naluID uint8
 	packets := p.(rtp.Packetizer).Packetize(sample.Data, samples)
 	for k, _ := range packets {
 		//log.Println(packets[k].Payload[0] & 0x1f)
-		ctlbyte := byte((naluID << 7) & 0x80)
+		ctlbyte := (naluID << 7) & 0x80
 		fb := (framenumber & 0x0000ff00 >> 8)
 		sb := (framenumber & 0x000000ff)
 		packets[k].Payload = append(packets[k].Payload, []byte{byte(ctlbyte), byte(fb), byte(sb)}...)
